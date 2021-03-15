@@ -7,6 +7,8 @@ from time import sleep
 import pidcontroller
 from os import path
 import fcntl
+from common import *
+
 
 HOST = '0.0.0.0'
 PORT = 53599
@@ -16,10 +18,10 @@ server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server_socket.bind(('', PORT))
 
 server_socket.listen(5)
-print("\n Listning on port: " + str(PORT))
+eprint("\n Listning on port: " + str(PORT))
 
 client_socket, (client_ip, client_port) = server_socket.accept()
-print("\n Client" + client_ip + "connected successfully\n")
+eprint("\n Client" + client_ip + "connected successfully\n")
 
 throttle = 0.0
 gear = 1
@@ -45,6 +47,8 @@ while True:
         throttle = 0.0
     else:
         throttle = prefered_accel
+    tprint("Throttle %.2f" % (throttle))
+
     mapping = [1100, 3000] # Shift down & shift up RPM
     if (throttle > 0.9):
         mapping = [4500, 7500]
@@ -52,8 +56,9 @@ while True:
         gear = min(5, gear+1)
     elif rpm < mapping[0]:
         gear = max(1, gear-1)
-    
-    print("Gear %d, Throttle %.2f" % (gear, throttle))
+    tprint("Gear %d" % (gear))
+
+    eprint("Gear %d, Throttle %.2f" % (gear, throttle))
     with open('gear.txt', 'w') as f:
         fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
         f.write(str(gear))
@@ -65,5 +70,5 @@ while True:
 
     time.sleep(0.400)
 
-print("Now Exit")
+eprint("Now Exit")
 client_socket.close()
