@@ -1,7 +1,10 @@
+#!/usr/bin/python3
+
 from common import *
 import re
 
 FIFO = 'pipe_eng_ctl'
+KEYS = ["Throttle", "Gear"]
 
 def eng_ctl_filter(line):
     res = re.match("_DATATRACE_ (.*) (\d+(?:\.\d+)?)", line)
@@ -14,4 +17,4 @@ def eng_ctl_filter(line):
     
 
 monitor_init(FIFO)
-monitor_guts(FIFO, eng_ctl_filter)
+monitor_guts(FIFO, eng_ctl_filter, KEYS)
