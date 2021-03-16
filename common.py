@@ -7,6 +7,7 @@ import platform
 import time
 import pickle
 import threading
+import fcntl
 
 # Main CPIS node
 HOST = "100.0.0.1"
@@ -20,6 +21,8 @@ ALLIPS = {
     "100.0.0.3": "cc_ctrl",
     "100.0.0.2": "engine_ctrl",
 }
+
+UPDATE_FREQ = 5.0
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
@@ -102,3 +105,28 @@ def monitor_guts(fifo, apply_filter, keys):
     eprint("PIPE Writer closed")
     fifo_fd.close()
     os._exit(2)
+
+
+def read_file(name, type):
+    line = ""
+    retry_total = 5
+    for i in range(retry_total):
+        opened_file = open(name, 'r')
+        fcntl.flock(opened_file, fcntl.LOCK_EX)
+        line = opened_file.read()
+        fcntl.flock(opened_file, fcntl.LOCK_UN)
+        opened_file.close()
+        if not line:
+            eprint("Retry %d of %d" % (i, retry_total))
+            time.sleep(0.01)
+            continue
+        value = type(line)
+        return value
+    raise ValueError("Unable to read %s: Got '%s'" % (name, line))
+
+
+def write_file(name, value):
+    with open(name, 'w') as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        f.write(str(value))
+        fcntl.flock(f, fcntl.LOCK_UN)

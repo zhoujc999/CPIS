@@ -31,14 +31,16 @@ def main():
     # Connect to CPIS monitors
     for i in range(NUM_CLIENTS):
         client_socket, (client_ip, client_port) = server_socket.accept()
-        print("\n Client %d of %d (%s) connected successfully" %
-            (i+1, NUM_CLIENTS, client_ip))
         if client_ip not in ALLIPS:
             print("Unrecognized IP: %s" % client_ip)
             sys.exit(1)
+        print("Client %d of %d %s(%s) connected successfully" %
+            (i+1, NUM_CLIENTS, ALLIPS[client_ip], client_ip))
+
         client_socket_l.append(client_socket)
         client_name_l.append(ALLIPS[client_ip])
         keys.extend(ALLKEYS[client_name_l[i]])
+    print("\n")
 
     # Receiving & processing monitors' data
     exit_now = False

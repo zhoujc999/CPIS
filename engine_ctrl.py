@@ -28,6 +28,8 @@ gear = 1
 rpm = 0
 while True:
     in_payload = client_socket.recv(104) # revist
+    if not in_payload:
+        break
     prefered_accel = in_payload.decode()
     prefered_accel = float(prefered_accel)
     # deserialize
@@ -35,10 +37,7 @@ while True:
     # print(prefered_accel)
     
     # Read rpm from simulation
-    with open('rpm.txt', 'r') as f:
-        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        rpm = int(f.read())
-        fcntl.flock(f, fcntl.LOCK_UN)
+    rpm = read_file('rpm.txt', int)
     tprint("RPM %d" % (rpm))
 
     # Engine control
@@ -60,16 +59,10 @@ while True:
     tprint("Gear %d" % (gear))
 
     eprint("Gear %d, Throttle %.2f" % (gear, throttle))
-    with open('gear.txt', 'w') as f:
-        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        f.write(str(gear))
-        fcntl.flock(f, fcntl.LOCK_UN)
-    with open('throttle.txt', 'w') as f:
-        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        f.write(str(float(throttle)))
-        fcntl.flock(f, fcntl.LOCK_UN)
+    write_file('gear.txt', gear)
+    write_file('throttle.txt', float(throttle))
 
-    time.sleep(0.100)
+    # time.sleep(0.001)
 
-eprint("Now Exit")
+eprint("CC Controller disconnected, Now Exit")
 client_socket.close()

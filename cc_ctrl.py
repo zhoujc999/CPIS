@@ -41,27 +41,20 @@ cur_speed = 0.0
 set_speed = 0
 while True:
     # Get cur_speed from vehicle simulator (in kmh)
-    with open('cur_speed.txt', 'r') as opened_file:
-        fcntl.flock(opened_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        cur_speed = float(opened_file.read())
-        fcntl.flock(opened_file, fcntl.LOCK_UN)
+    cur_speed = read_file('cur_speed.txt', float)
     tprint("Cur_Spd %.2f" % (cur_speed))
-
-    with open('set_speed.txt', 'r') as opened_file:
-        fcntl.flock(opened_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        set_speed = int(opened_file.read())
-        fcntl.flock(opened_file, fcntl.LOCK_UN)
+    set_speed = read_file('set_speed.txt', int)
     tprint("Set_Spd %d" % (set_speed))
 
     # Calculate prefered acceleration & deacceleration
     diff = set_speed - cur_speed
-    prefered_accel = pid.Update(diff, dt=2, ci_limit_L=-10, ci_limit_H=200) / 20
-    tprint("Pref_Accel %d" % (set_speed))
+    prefered_accel = pid.Update(diff, dt=UPDATE_FREQ, ci_limit_L=-10, ci_limit_H=200) / 20
+    tprint("Pref_Accel %.2f" % (prefered_accel))
     eprint("Prefered Acceleration %.2f" % (prefered_accel))
 
     payload_serialize = str.encode(str(prefered_accel))
     connection_socket.send(payload_serialize)
     # eprint("Payload delivered\n")
-    time.sleep(0.500)
+    time.sleep(1.0 / UPDATE_FREQ)
 
 connection_socket.close()

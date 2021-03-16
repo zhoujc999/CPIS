@@ -10,7 +10,9 @@ import pidcontroller
 from os import path
 import numpy as np
 import fcntl
+from common import read_file, write_file, UPDATE_FREQ
 
+SIM_FREQ = UPDATE_FREQ * 2
 
 def motor_torque(omega, params={}):
     # Set up the system parameters
@@ -112,31 +114,19 @@ with open('rpm.txt', 'w') as f:
 
 while True:
     # Read from engine controller
-    with open('throttle.txt', 'r') as opened_file:
-        fcntl.flock(opened_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        throttle = float(opened_file.read())
-        fcntl.flock(opened_file, fcntl.LOCK_UN)
-    with open('gear.txt', 'r') as opened_file:
-        fcntl.flock(opened_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        gear = int(opened_file.read())
-        fcntl.flock(opened_file, fcntl.LOCK_UN)
+    throttle = read_file('throttle.txt', float)
+    gear = read_file('gear.txt', int)
 
     # Vehicle simulation
     if not (cur_speed_ms == 0 and throttle == 0):
         dv, omega = vehicle_update(0, [cur_speed_ms], [throttle, gear, 0])
-        cur_speed_ms = cur_speed_ms + (dv * 0.5)
+        cur_speed_ms = cur_speed_ms + (dv / SIM_FREQ)
         rpm = int(omega / ((2*pi)/60))
 
     print("Speed %.2f KMH, rpm %d" % (cur_speed_ms * 3.6, rpm))
-    with open('cur_speed.txt', 'w') as f:
-        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        f.write(str(cur_speed_ms * 3.6))
-        fcntl.flock(f, fcntl.LOCK_UN)
-    with open('rpm.txt', 'w') as f:
-        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        f.write(str(rpm))
-        fcntl.flock(f, fcntl.LOCK_UN)
+    write_file('cur_speed.txt', cur_speed_ms * 3.6)
+    write_file('rpm.txt', rpm)
 
-    time.sleep(0.5)
+    time.sleep(1.0 / SIM_FREQ)
 
 print("Now Exit")
