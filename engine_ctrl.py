@@ -39,6 +39,7 @@ while True:
         fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
         rpm = int(f.read())
         fcntl.flock(f, fcntl.LOCK_UN)
+    tprint("RPM %d" % (rpm))
 
     # Engine control
     if prefered_accel > 1.0:
@@ -68,7 +69,7 @@ while True:
         f.write(str(float(throttle)))
         fcntl.flock(f, fcntl.LOCK_UN)
 
-    time.sleep(0.400)
+    time.sleep(0.100)
 
 eprint("Now Exit")
 client_socket.close()

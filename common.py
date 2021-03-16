@@ -11,6 +11,15 @@ import threading
 # Main CPIS node
 HOST = "100.0.0.1"
 PORT = 53599
+ALLKEYS = {
+    "engine_ctrl": ["Throttle", "Gear", "RPM"],
+    "cc_ctrl": ["Cur_Spd", "Set_Spd", "Pref_Accel"],
+}
+
+ALLIPS = {
+    "100.0.0.3": "cc_ctrl",
+    "100.0.0.2": "engine_ctrl",
+}
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)

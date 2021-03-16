@@ -3,9 +3,9 @@
 from common import *
 import re
 
-FIFO = 'pipe_eng_ctl'
+FIFO = 'pipe_cc_ctl'
 
-def eng_ctl_filter(line):
+def cc_ctl_filter(line):
     res = re.match("_DATATRACE_ (.*) (\d+(?:\.\d+)?)", line)
     if not res:
         return None, None
@@ -16,4 +16,4 @@ def eng_ctl_filter(line):
     
 
 monitor_init(FIFO)
-monitor_guts(FIFO, eng_ctl_filter, ALLKEYS["engine_ctrl"])
+monitor_guts(FIFO, cc_ctl_filter, ALLKEYS["cc_ctrl"])
