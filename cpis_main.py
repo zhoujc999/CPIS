@@ -5,7 +5,7 @@ import sys
 import select
 import time
 import pickle
-from common import ALLKEYS, ALLIPS, PORT
+from common import DATA_ALLKEYS, TR_ALLKEYS, ALLIPS, PORT
 
 HOST = '0.0.0.0'
 NUM_CLIENTS = len(ALLIPS)
@@ -13,11 +13,11 @@ NUM_CLIENTS = len(ALLIPS)
 client_socket_l = []
 client_name_l = []
 keys = []
-buffer = []
+data_buffer = []
 
-def print_buffer():
-    for i in range(len(buffer)):
-        print("%s=%s " % (keys[i], buffer[i]), end='')
+def print_data_buffer():
+    for i in range(len(data_buffer)):
+        print("%s=%s " % (keys[i], data_buffer[i]), end='')
     print(" ")
 
 def main():
@@ -39,13 +39,13 @@ def main():
 
         client_socket_l.append(client_socket)
         client_name_l.append(ALLIPS[client_ip])
-        keys.extend(ALLKEYS[client_name_l[i]])
+        keys.extend(DATA_ALLKEYS[client_name_l[i]])
     print("\n")
 
     # Receiving & processing monitors' data
     exit_now = False
     while True:
-        buffer.clear()
+        data_buffer.clear()
         for i in range(NUM_CLIENTS):
             # Send
             client_socket_l[i].send(b'1')
@@ -53,11 +53,16 @@ def main():
             in_payload = client_socket_l[i].recv(1024)
             if len(in_payload) == 0:
                 exit_now = True
-            buffer.extend(pickle.loads(in_payload))
+            data, counters, res = pickle.loads(in_payload)
+            data_buffer.extend(data)
+
+            # Report from reprocessors
+            if (res):
+                print("!! Monitor [%s] reports anomaly !!" % client_name_l[i])
 
         if exit_now:
             break
-        print_buffer()
+        print_data_buffer()
         time.sleep(0.800)
 
     print("Now Exit")

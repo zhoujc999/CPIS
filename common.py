@@ -8,13 +8,19 @@ import time
 import pickle
 import threading
 import fcntl
+import re
 
 # Main CPIS node
 HOST = "100.0.0.1"
 PORT = 53599
-ALLKEYS = {
+DATA_ALLKEYS = {
     "engine_ctrl": ["Throttle", "Gear", "RPM"],
     "cc_ctrl": ["Cur_Spd", "Set_Spd", "Pref_Accel"],
+}
+
+TR_ALLKEYS = {
+    "engine_ctrl": [30, 45, 47, 49, 56, 58, 62, 63],
+    "cc_ctrl": [44, 46, 51, 56],
 }
 
 ALLIPS = {
@@ -23,6 +29,7 @@ ALLIPS = {
 }
 
 UPDATE_FREQ = 5.0
+TRACE_COUNTER_SZ = 1000
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
@@ -51,7 +58,25 @@ def connect_to_server_socket(host, port):
     return connection_socket
 
 
-def monitor_guts(fifo, apply_filter, keys):
+""" Monitor guts """
+
+def monitor_data_extract(line):
+    res = re.match("_DATATRACE_ (.*) (\d+(?:\.\d+)?)", line)
+    if not res:
+        return None, None
+    key = res.groups()[0]
+    value = res.groups()[1]
+    # eprint("Grep data: %s is %s" % (key, value))
+    return key, value
+
+def monitor_line_extract(line):
+    res = re.match(".*.py\((\d+)\):.*", line)
+    if not res:
+        return -1
+    line = res.groups()[0]
+    return line
+
+def monitor_guts(fifo, file_name, data_keys, trace_keys, pre_processor):
     eprint("Connecting to %s:%s ..." % (HOST, str(PORT)))
     connection_socket = connect_to_server_socket(HOST, PORT)
     eprint("Connected to %s:%s" % (HOST, str(PORT)))
@@ -60,10 +85,16 @@ def monitor_guts(fifo, apply_filter, keys):
     eprint("FIFO opened")
 
     buffer_lock = threading.Lock()
-    buffer = []
-    counter = 0
-    for _ in keys:
-        buffer.append(-1.0)
+    data_buffer = []
+    trace_counter_reduced_diff = []
+    trace_counter_reduced = []
+    trace_counter = [0] * TRACE_COUNTER_SZ
+    main_counter = 0
+    for _ in data_keys:
+        data_buffer.append(-1.0)
+    for _ in trace_keys:
+        trace_counter_reduced_diff.append(0)
+        trace_counter_reduced.append(0)
 
     # socket thread
     def socket_handler():
@@ -73,13 +104,22 @@ def monitor_guts(fifo, apply_filter, keys):
                 break
             if (in_bytes == b'0'):
                 continue
+            # prepare data
             buffer_lock.acquire()
-            data=pickle.dumps(buffer)
+            data_buffer_copy = data_buffer.copy()
+            for i in range(len(trace_keys)):
+                trace_counter_reduced_diff[i] = trace_counter[trace_keys[i]] - trace_counter_reduced[i]
+                trace_counter_reduced[i] = trace_counter[trace_keys[i]]
             buffer_lock.release()
-            # eprint("payload size is \n" + sys.getsizeof(payload_serialize))
-            connection_socket.send(data)
+            # pre-processing
+            res = pre_processor(data_buffer_copy, trace_counter_reduced_diff)
+            # send
+            payload = pickle.dumps((data_buffer_copy, trace_counter_reduced_diff, res))
+            connection_socket.send(payload)
             # eprint("Payload delivered\n")
             time.sleep(0.1)
+            # eprint("RES=%d, %s" % (res, str(trace_counter_reduced_diff)))
+    
         eprint("CPIS MAIN disconnected, now Exit")
         connection_socket.close()
         os._exit(1)
@@ -91,17 +131,26 @@ def monitor_guts(fifo, apply_filter, keys):
         data = fifo_fd.readline()
         if len(data) == 0:
             break
-        counter += 1
-        if data[0] != '_':
-            continue
-        key,value = apply_filter(data)
-        if not key:
-            continue
-        eprint("[%d] Got %s=%s" % (counter, key, value))
-        if key in keys:
-            buffer_lock.acquire()
-            buffer[keys.index(key)] = value
-            buffer_lock.release()
+        main_counter += 1
+        if data[0] == '_':
+            # Trace w/ Data
+            key, value = monitor_data_extract(data)
+            if not key:
+                continue
+            # eprint("[%d] Got %s=%s" % (main_counter, key, value))
+            if key in data_keys:
+                buffer_lock.acquire()
+                data_buffer[data_keys.index(key)] = value
+                buffer_lock.release()
+        elif data.startswith(file_name):
+            # Trace w/o Data
+            line_num = int(monitor_line_extract(data))
+            if line_num > 0 and line_num < TRACE_COUNTER_SZ:
+                # eprint("line %d" % int(line_num))
+                buffer_lock.acquire()
+                trace_counter[line_num] += 1
+                buffer_lock.release()
+
     eprint("PIPE Writer closed")
     fifo_fd.close()
     os._exit(2)
@@ -130,3 +179,13 @@ def write_file(name, value):
         fcntl.flock(f, fcntl.LOCK_EX)
         f.write(str(value))
         fcntl.flock(f, fcntl.LOCK_UN)
+
+def watch_dog(input):
+    watch_dog.violate_count = getattr(watch_dog, 'violate_count', 0)
+    if input <= 0:
+        watch_dog.violate_count += 1
+        if (watch_dog.violate_count >= 3):
+            return 1
+    elif (watch_dog.violate_count > 1):
+        watch_dog.violate_count -= 1 
+    return 0
