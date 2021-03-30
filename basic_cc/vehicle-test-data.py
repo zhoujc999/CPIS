@@ -128,7 +128,7 @@ def main():
         if diff > 0:
             throttle = min(diff / 10, 0.8)
         """
-        spd_control = pid.Update(diff, dt=10, ci_limit_L=-10, ci_limit_H=200) / 20
+        spd_control = pid.Update(diff, dt=5, ci_limit_L=-10, ci_limit_H=200) / 20
 
         # Engine control
         if spd_control > 1.0:
@@ -148,16 +148,19 @@ def main():
 
         # Vehicle simulation
         dv, omega = vehicle_update(0, [cur_speed], [throttle, gear, 0])
-        new_speed = cur_speed + (dv * 0.1)
+        new_speed = cur_speed + (dv * 0.2)
 
-        df = df.append({"Current Speed": new_speed * 3.6, "Previous Speed": cur_speed * 3.6, "Throttle": throttle, "Gear": gear, "Class": my_class}, ignore_index=True)
+
+        if i % 4 == 0:
+            df = df.append({"Current Speed": new_speed * 3.6, "Previous Speed": cur_speed * 3.6, "Throttle": throttle, "Gear": gear, "Class": my_class}, ignore_index=True)
+
         cur_speed = new_speed
 
 
 
         print("Speed %d KMH, RPM %d, Gear %d, Throttle %.2f" %
               (cur_speed * 3.6, rpm, gear, throttle))
-        sleep(0.1)
+        sleep(0.2)
 
     df.to_csv("data.csv")
 
