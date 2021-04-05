@@ -108,6 +108,10 @@ def main():
     train_Y = data['Current Speed'] - data['Previous Speed']
     processor = CPIS_Processor()
     for i in range(len(train_X)):
+
+        if train_X.iloc[i, "Throttle"] == 1.0 or train_X.iloc[i, "Throttle"] == 0.0:
+            continue
+
         X_i = train_X.iloc[i,].to_numpy().reshape((3,-1))
         y_i = train_Y.iloc[i,]
         processor.train(X_i, y_i)

@@ -41,12 +41,12 @@ while True:
     tprint("RPM %d" % (rpm))
 
     # Engine control
-    if prefered_accel > 1.0:
+    if prefered_accel > THROTTLE_SCALE:
         throttle = 1.0
     elif prefered_accel < 0.0:
         throttle = 0.0
     else:
-        throttle = prefered_accel
+        throttle = preferred_accel_to_accel(prefered_accel) # prefered_accel
     tprint("Throttle %.2f" % (throttle))
 
     mapping = [1100, 3000] # Shift down & shift up RPM

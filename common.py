@@ -189,3 +189,13 @@ def watch_dog(input):
     elif (watch_dog.violate_count > 1):
         watch_dog.violate_count -= 1 
     return 0
+
+THROTTLE_SCALE = 2
+
+def preferred_accel_to_accel(input):
+    if input > THROTTLE_SCALE:
+        return 1.0
+    elif input < 0.0:
+        return 0.0
+    else:
+        return (input / THROTTLE_SCALE)

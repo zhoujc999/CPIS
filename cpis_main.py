@@ -25,6 +25,16 @@ def print_data_buffer():
     print(" ")
 
 def main():
+    should_train = True
+
+    Threshold_alert = 20.0
+    Threshold_calibrate = 1.0
+    Accu_alert = 0
+    Accu_calibrate = 0
+    Threshold_alert_accu = 3
+    Threshold_calibrate_accu = 10
+    Starting_delay = 10
+
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind(('', PORT))
@@ -72,6 +82,9 @@ def main():
     thrt_idx = keys.index('Throttle')
     while True:
         data_buffer.clear()
+        if Starting_delay > 0:
+            Starting_delay -= 1
+            
         for i in range(NUM_CLIENTS):
             # Send
             client_socket_l[i].send(b'1')
@@ -108,17 +121,41 @@ def main():
         ])
         X_i = X_i.reshape((3,1))
         y_i = spd_diff / time_diff
-        print("Xi=%s; yi=%s" % (X_i, y_i))
+        # print("Xi=%s; yi=%s" % (X_i, y_i))
+
 
         # Online Train
         #print("==Before Training (theta = %s)." % theta)
-        if training_count > 0:
-            theta, P = LR_model.train(X_i, y_i, l=0.8)
-            training_count -= 1
-            print("==Training." % theta)
+        if (training_count > 0 and
+           float(data_buffer[thrt_idx]) != 0.0 and
+           float(data_buffer[thrt_idx]) != 1.0):
+                theta, P = LR_model.train(X_i, y_i, l=0.8)
+                training_count -= 1
+                should_train = False
+                print("==Training." % theta)
         else:
-            error = LR_model.test(X_i, y_i, None)
+            error = LR_model.test(X_i, y_i, None)[0][0]
+            # should_train = True
             print("==Error is %s" % error)
+
+            # Check for anomaly
+            if error > Threshold_alert and Starting_delay == 0:
+                Accu_alert += 1
+                if Accu_alert > Threshold_alert_accu:
+                    print("\nALERT\n")
+                    Accu_alert = 0
+            # Check for calibration
+            elif error > Threshold_calibrate:
+                Accu_calibrate += 1
+                if Accu_calibrate > Threshold_calibrate_accu:
+                    print("==Re-train for calibration")
+                    Accu_calibrate = 0
+                    training_count = 5
+            else:
+                Accu_alert = 0
+                Accu_calibrate = 0
+
+
         time.sleep(0.800)
 
     print("Now Exit")
