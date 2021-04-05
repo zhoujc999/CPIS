@@ -1,4 +1,4 @@
-import pandas as pd
+# import pandas as pd
 import numpy as np
 
 
@@ -49,19 +49,6 @@ class CPIS_Processor:
         np.savetxt(self.directory + "theta.csv", self.theta, delimiter=",")
         return self.theta, self.P
 
-    def test(self, X_i, y_i, se_threshold):
-        """
-        Wrapper function for testing the linear regression. Retrieves most updated
-        P and theta from csv.
-        Inputs:
-            X_i: Numpy column containing the current X variables.
-            y_i: Response variable
-            se_threshold: Squared error threshold. Must be greater than 0.
-        Returns True if the current data point is not an anomaly else False.
-        """
-        theta = np.loadtxt(self.directory + "theta.csv", delimiter=",")
-        return self.linear_regression_test(X_i, y_i, theta, se_threshold)
-
     def linear_regression_train(self, X_i, y_i, theta, P, l):
         """
         Private function.
@@ -69,7 +56,7 @@ class CPIS_Processor:
         http://www.cs.tut.fi/~tabus/course/ASP/LectureNew10.pdf (Page 9)
         Inputs:
             X_i: Numpy column containing the current X variables.
-            Y_i: Response variable.
+            y_i: Response variable.
             theta: Current estimate of the predictors.
             P: Phi-inverse.
             l: Lambda. Forgetting factor.
@@ -80,10 +67,24 @@ class CPIS_Processor:
         k = pi.T / gamma
         alpha = y_i - np.dot(theta.T, X_i)
         theta = theta + alpha * k
+        # print("k", k)
         P = 1 / l * (P - np.dot(k, pi))
         return theta, P
 
-    def linear_regression_test(self, X_i, y_i, theta, se_threshold):
+    def test(self, X_i, y_i, se_threshold):
+        """
+        Wrapper function for testing the linear regression. Retrieves most updated
+        P and theta from csv.
+        Inputs:
+            X_i: Numpy column containing the current X variables.
+            y_i: Response variable
+            se_threshold: Squared error threshold. Must be greater than 0.
+        Returns True if the current data point is not an anomaly else False.
+        """
+        theta = np.loadtxt(self.directory + "theta.csv", delimiter=",").reshape((3, 1))
+        return self.linear_regression_test(X_i, y_i, theta)
+
+    def linear_regression_test(self, X_i, y_i, theta):
         """
         Private function.
         Test if the current data point is not an anomaly.
@@ -94,13 +95,13 @@ class CPIS_Processor:
         Returns True if the current data point is not an anomaly else False.
         """
         squared_error = (y_i - np.dot(X_i.T, theta)) ** 2
-        return True if squared_error <= se_threshold else False
+        # return True if squared_error <= se_threshold else False
+        return squared_error
 
-
+"""
 def main():
-    """
-    Driver function.
-    """
+    
+    # Driver function.
     data = pd.read_csv("data.csv")
     data= data.drop(columns="Class")
     train_X = data.drop(columns=["Previous Speed"])
@@ -110,6 +111,7 @@ def main():
         X_i = train_X.iloc[i,].to_numpy().reshape((3,-1))
         y_i = train_Y.iloc[i,]
         processor.train(X_i, y_i)
+"""
 
 if __name__ == "__main__":
     main()
