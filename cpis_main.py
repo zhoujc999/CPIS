@@ -6,7 +6,7 @@ import select
 import time
 import pickle
 from common import DATA_ALLKEYS, TR_ALLKEYS, ALLIPS, PORT
-from common import FORCE_TRAINING
+from common import FORCE_TRAINING, preferred_accel_to_accel
 from cpis_processor import CPIS_Processor
 import numpy as np
 import os
@@ -87,6 +87,7 @@ def main():
     sped_idx = keys.index('Cur_Spd')
     gear_idx = keys.index('Gear')
     thrt_idx = keys.index('Throttle')
+    pref_accel_idx = keys.index("Pref_Accel")
     while True:
         data_buffer.clear()
         if Starting_delay > 0:
@@ -99,6 +100,7 @@ def main():
             in_payload = client_socket_l[i].recv(1024)
             if len(in_payload) == 0:
                 exit_now = True
+                break
             data, counters, res = pickle.loads(in_payload)
             data_buffer.extend(data)
 
@@ -114,6 +116,7 @@ def main():
         cur_sped = float(data_buffer[sped_idx])
         cur_thrt = float(data_buffer[thrt_idx])
         cur_gear = float(data_buffer[gear_idx])
+        cur_thrt_from_cc = preferred_accel_to_accel(float(data_buffer[pref_accel_idx]))
 
         # Calc acceleration
         spd_diff = cur_sped - prev_sped
@@ -129,6 +132,7 @@ def main():
         ])
 
         # More realistic Features
+        cur_thrt = cur_thrt_from_cc
         X_i = np.array([
             cur_sped ** 2,
             (cur_thrt / cur_gear),

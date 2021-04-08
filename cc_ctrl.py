@@ -64,7 +64,7 @@ while True:
 
     tprint("Pref_Accel %.2f" % (prefered_accel))
     eprint("Prefered Acceleration %.2f" % (prefered_accel))
-    payload_serialize = str.encode("%.2f" % (prefered_accel))
+    payload_serialize = str.encode("%+.2f" % (prefered_accel))
     connection_socket.send(payload_serialize)
     # eprint("Payload delivered\n")
     time.sleep(1.0 / UPDATE_FREQ)
