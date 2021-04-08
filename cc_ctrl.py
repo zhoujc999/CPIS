@@ -39,6 +39,8 @@ eprint("Connected.")
 
 cur_speed = 0.0
 set_speed = 0
+cur_pref_accel = 0.1
+cur_pref_accel_diff = 0.1
 while True:
     # Get cur_speed from vehicle simulator (in kmh)
     cur_speed = read_file('cur_speed.txt', float)
@@ -49,10 +51,20 @@ while True:
     # Calculate prefered acceleration & deacceleration
     diff = set_speed - cur_speed
     prefered_accel = pid.Update(diff, dt=UPDATE_FREQ, ci_limit_L=-10, ci_limit_H=200) / 20
+    
+    # Training Mode
+    if (FORCE_TRAINING):
+        cur_pref_accel += cur_pref_accel_diff
+        if cur_pref_accel > 2.1:
+            cur_pref_accel_diff = -cur_pref_accel_diff
+        elif cur_pref_accel < -0.1:
+            cur_pref_accel_diff = -cur_pref_accel_diff
+        prefered_accel = cur_pref_accel
+        eprint("(Force Training Mode)")
+
     tprint("Pref_Accel %.2f" % (prefered_accel))
     eprint("Prefered Acceleration %.2f" % (prefered_accel))
-
-    payload_serialize = str.encode(str(prefered_accel))
+    payload_serialize = str.encode("%.2f" % (prefered_accel))
     connection_socket.send(payload_serialize)
     # eprint("Payload delivered\n")
     time.sleep(1.0 / UPDATE_FREQ)

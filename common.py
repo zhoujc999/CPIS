@@ -10,6 +10,8 @@ import threading
 import fcntl
 import re
 
+FORCE_TRAINING = False
+
 # Main CPIS node
 HOST = "100.0.0.1"
 PORT = 53599
@@ -20,7 +22,7 @@ DATA_ALLKEYS = {
 
 TR_ALLKEYS = {
     "engine_ctrl": [30, 45, 47, 49, 56, 58, 62, 63],
-    "cc_ctrl": [44, 46, 51, 56],
+    "cc_ctrl": [44, 46, 53, 68],
 }
 
 ALLIPS = {

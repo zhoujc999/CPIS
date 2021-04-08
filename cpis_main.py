@@ -6,11 +6,14 @@ import select
 import time
 import pickle
 from common import DATA_ALLKEYS, TR_ALLKEYS, ALLIPS, PORT
+from common import FORCE_TRAINING
 from cpis_processor import CPIS_Processor
 import numpy as np
+import os
 
 HOST = '0.0.0.0'
 NUM_CLIENTS = len(ALLIPS)
+CPIS_UPDATE_DLAY = 0.8
 
 client_socket_l = []
 client_name_l = []
@@ -25,6 +28,7 @@ def print_data_buffer():
     print(" ")
 
 def main():
+    file1 = open("new_data.txt", "a")
     should_train = True
 
     Threshold_alert = 20.0
@@ -35,6 +39,7 @@ def main():
     Threshold_calibrate_accu = 10
     Starting_delay = 10
 
+
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind(('', PORT))
@@ -42,18 +47,20 @@ def main():
     server_socket.listen(5)
     print("\n Listning on port: " + str(PORT))
 
-    # Init the model
-    p0 = np.array([
-[2.210843984499893821e-06,-5.657178557028958886e-05,-3.752115930753636232e-05],
-[-5.657178557385380863e-05,5.305463786752321123e-03,8.656815972961321316e-04],
-[-3.752115931375383487e-05,8.656815972987671765e-04,6.564533706505748870e-04],
-])
-    theta = np.array([
-[1.393763362373513586e-04],
-[8.894631089364557486e-02],
-[-5.111392825591626506e-03],
-])
-    theta = np.loadtxt("theta.csv", delimiter=",").reshape((3, 1))
+#     Init the model
+#     p0 = np.array([
+# [2.210843984499893821e-06,-5.657178557028958886e-05,-3.752115930753636232e-05],
+# [-5.657178557385380863e-05,5.305463786752321123e-03,8.656815972961321316e-04],
+# [-3.752115931375383487e-05,8.656815972987671765e-04,6.564533706505748870e-04],
+# ])
+#     theta = np.array([
+# [1.393763362373513586e-04],
+# [8.894631089364557486e-02],
+# [-5.111392825591626506e-03],
+# ])
+    theta = np.loadtxt("theta.csv", delimiter=",").reshape((4, 1))
+    if FORCE_TRAINING:
+        theta = None
     LR_model = CPIS_Processor(P_0=None, theta_0=theta, directory=None)
 
     # Connect to CPIS monitors
@@ -103,33 +110,53 @@ def main():
             break
         print_data_buffer()
 
-        # Prediction
-        spd_diff = float(data_buffer[sped_idx]) - prev_sped
-        prev_sped = float(data_buffer[sped_idx])
-        
+        # Extract Data
+        cur_sped = float(data_buffer[sped_idx])
+        cur_thrt = float(data_buffer[thrt_idx])
+        cur_gear = float(data_buffer[gear_idx])
+
+        # Calc acceleration
+        spd_diff = cur_sped - prev_sped
+        prev_sped = cur_sped
         time_diff = time.time() - prev_time
         prev_time = time.time()
 
-        if (data_buffer[gear_idx] != prev_gear):
-            training_count = 5
-        prev_gear = data_buffer[gear_idx]
-
+        # Features
         X_i = np.array([
-            float(data_buffer[sped_idx]),
-            float(data_buffer[thrt_idx]),
-            float(data_buffer[gear_idx])
+            cur_sped,
+            cur_thrt,
+            cur_gear
         ])
-        X_i = X_i.reshape((3,1))
+
+        # More realistic Features
+        X_i = np.array([
+            cur_sped ** 2,
+            (cur_thrt / cur_gear),
+            cur_sped
+        ])
+
+        X_i = X_i.reshape((3, 1))
         y_i = spd_diff / time_diff
         # print("Xi=%s; yi=%s" % (X_i, y_i))
 
+        # Force training
+        if FORCE_TRAINING:
+            if (y_i < 10 and y_i > -10):
+                # and cur_thrt != 0.0
+                # and cur_thrt != 1.0):
+                theta, P = LR_model.train(X_i, y_i, l=1)
+                print("==Force Training." % theta)
+
+            time.sleep(CPIS_UPDATE_DLAY)
+            continue
+        
 
         # Online Train
-        #print("==Before Training (theta = %s)." % theta)
+        # training_count = 0
         if (training_count > 0 and
-           float(data_buffer[thrt_idx]) != 0.0 and
-           float(data_buffer[thrt_idx]) != 1.0):
-                theta, P = LR_model.train(X_i, y_i, l=0.8)
+           cur_thrt != 0.0 and
+           cur_thrt != 1.0):
+                theta, P = LR_model.train(X_i, y_i, l=0.99)
                 training_count -= 1
                 should_train = False
                 print("==Training." % theta)
@@ -141,7 +168,8 @@ def main():
             # Check for anomaly
             if error > Threshold_alert and Starting_delay == 0:
                 Accu_alert += 1
-                if Accu_alert > Threshold_alert_accu:
+                if (Accu_alert > Threshold_alert_accu or
+                    error > 1000):
                     print("\nALERT\n")
                     Accu_alert = 0
             # Check for calibration
@@ -155,8 +183,7 @@ def main():
                 Accu_alert = 0
                 Accu_calibrate = 0
 
-
-        time.sleep(0.800)
+        time.sleep(CPIS_UPDATE_DLAY)
 
     print("Now Exit")
     client_socket.close()

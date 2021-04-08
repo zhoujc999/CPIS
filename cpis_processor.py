@@ -21,12 +21,12 @@ class CPIS_Processor:
             self.directory = directory
 
         if P_0 is None:
-            self.P = 100 * np.eye(3)
+            self.P = 100 * np.eye(4)
         else:
             self.P = P_0
 
         if theta_0 is None:
-            self.theta = np.array([[0],[0],[0]])
+            self.theta = np.array([[0], [0], [0], [0]])
         else:
             self.theta = theta_0
 
@@ -44,6 +44,7 @@ class CPIS_Processor:
                for details.
         Returns updated theta and P.
         """
+        X_i = np.insert(X_i, 0, 1).reshape((4, 1))
         self.theta, self.P = self.linear_regression_train(X_i, y_i, self.theta, self.P, l)
         np.savetxt(self.directory + "P.csv", self.P, delimiter=",")
         np.savetxt(self.directory + "theta.csv", self.theta, delimiter=",")
@@ -81,7 +82,8 @@ class CPIS_Processor:
             se_threshold: Squared error threshold. Must be greater than 0.
         Returns True if the current data point is not an anomaly else False.
         """
-        theta = np.loadtxt(self.directory + "theta.csv", delimiter=",").reshape((3, 1))
+        X_i = np.insert(X_i, 0, 1).reshape((4, 1))
+        theta = np.loadtxt(self.directory + "theta.csv", delimiter=",").reshape((4, 1))
         return self.linear_regression_test(X_i, y_i, theta)
 
     def linear_regression_test(self, X_i, y_i, theta):
