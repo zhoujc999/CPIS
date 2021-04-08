@@ -10,8 +10,20 @@ def cc_ctl_pre_processor(data, counters):
         eprint("Watch dog alert")
         return 1
     # serial
-    if not (counters[0] == counters[1] == counters[2] == counters[3]):
+    if assertion_counter(
+        (counters[0] == counters[1] == counters[2] == counters[3]),
+        threshold=5):
         eprint("Serial exec not equal")
+        return 1
+    # Speed Limit
+    cur_spd = float(data[0])
+    if (abs(cur_spd) > 300):
+        eprint("Abnormal Speed")
+        return 1
+    # Set speed Limit
+    cur_set_spd = float(data[1])
+    if (abs(cur_set_spd) > 300):
+        eprint("Abnormal Set Speed")
         return 1
     return 0
 

@@ -111,15 +111,19 @@ with open('cur_speed.txt', 'w') as f:
     f.write("0")
 with open('rpm.txt', 'w') as f:
     f.write("0")
+with open('slope.txt', 'w') as f:
+    f.write("0")
 
 while True:
     # Read from engine controller
     throttle = read_file('throttle.txt', float)
     gear = read_file('gear.txt', int)
+    slope_deg = read_file('slope.txt', float)
+    slope = slope_deg * pi / 180.0
 
     # Vehicle simulation
     if not (cur_speed_ms == 0 and throttle == 0):
-        dv, omega = vehicle_update(0, [cur_speed_ms], [throttle, gear, 0])
+        dv, omega = vehicle_update(0, [cur_speed_ms], [throttle, gear, slope])
         cur_speed_ms = cur_speed_ms + (dv / SIM_FREQ)
         rpm = int(omega / ((2*pi)/60))
 

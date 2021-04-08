@@ -104,7 +104,7 @@ def main():
 
             # Report from reprocessors
             if (res):
-                print("!! Monitor [%s] reports anomaly !!" % client_name_l[i])
+                print("\n!! Monitor [%s] reports anomaly !!\n" % client_name_l[i])
 
         if exit_now:
             break
@@ -170,7 +170,7 @@ def main():
                 Accu_alert += 1
                 if (Accu_alert > Threshold_alert_accu or
                     error > 1000):
-                    print("\nALERT\n")
+                    print("\n!! Accel Model Anomaly !!\n")
                     Accu_alert = 0
             # Check for calibration
             elif error > Threshold_calibrate:

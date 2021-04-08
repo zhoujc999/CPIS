@@ -22,7 +22,7 @@ DATA_ALLKEYS = {
 
 TR_ALLKEYS = {
     "engine_ctrl": [30, 45, 47, 49, 56, 58, 62, 63],
-    "cc_ctrl": [44, 46, 53, 68],
+    "cc_ctrl": [46, 48, 53, 68],
 }
 
 ALLIPS = {
@@ -188,8 +188,20 @@ def watch_dog(input):
         watch_dog.violate_count += 1
         if (watch_dog.violate_count >= 3):
             return 1
-    elif (watch_dog.violate_count > 1):
+    elif (watch_dog.violate_count >= 1):
         watch_dog.violate_count -= 1 
+    return 0
+
+def assertion_counter(input, threshold=3):
+    assertion_counter.counter = getattr(assertion_counter, 'counter', 0)
+    if not input:
+        if (assertion_counter.counter >= threshold):
+            return 1
+        else:
+            assertion_counter.counter += 1
+            print("Glitch %d of %d" % (assertion_counter.counter, threshold))
+    elif (assertion_counter.counter >= 1):
+        assertion_counter.counter -= 1
     return 0
 
 THROTTLE_SCALE = 2
