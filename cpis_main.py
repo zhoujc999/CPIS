@@ -46,10 +46,12 @@ def main():
     print("\n Listning on port: " + str(PORT))
 
     # Init the model
-    theta = np.loadtxt("theta.csv", delimiter=",").reshape((4, 1))
-    counters_invarts = np.loadtxt("counters_invarts.txt", dtype=float)
-    if FORCE_DATA_MODEL_TRAINING:
-        theta = None
+    theta = None
+    counters_invarts = None
+    if not FORCE_EXEC_MODEL_TRAINING:
+        counters_invarts = np.loadtxt("counters_invarts.txt", dtype=float)
+    if not FORCE_DATA_MODEL_TRAINING:
+        theta = np.loadtxt("theta.csv", delimiter=",").reshape((4, 1))
     LR_model = CPIS_Processor(P_0=None, theta_0=theta, directory=None)
 
     # Connect to CPIS monitors
@@ -125,6 +127,7 @@ def main():
         """ ======================== Exec Invariants Model =================== """
         if FORCE_EXEC_MODEL_TRAINING:
             import random
+            import numpy.linalg as lalg
             print("\nNew Counters [%s]" % counters_buffer)
             if counters_matrix_stat is None:
                 counters_matrix_stat = np.array(counters_buffer)
@@ -136,6 +139,23 @@ def main():
             matrix = np.array(counters_matrix, dtype=int)
             # print(matrix)
             np.savetxt("counters_mtx.txt", matrix)
+
+            # Mining invariants
+            v = lalg.svd(matrix)[2]
+            total_v = len(matrix)
+            rules = []
+            for null_vec in reversed(v):
+                cur_res = np.abs(matrix.dot(null_vec))
+                max_error = np.max(cur_res)
+                disagree_count = np.count_nonzero(cur_res > 0.1)
+                if (disagree_count == 0):
+                    rules.append(null_vec)
+                else:
+                    break
+            print("!Found %d Invariants, Next disagree ratio is %.2f, max error %.2f" %
+                  (len(rules), disagree_count / total_v, max_error))
+            np.savetxt("counters_invarts.txt", np.array(rules))
+
             time.sleep(random.uniform(2, 4))
             continue
 
