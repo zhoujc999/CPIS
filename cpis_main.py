@@ -5,8 +5,8 @@ import sys
 import select
 import time
 import pickle
-from common import DATA_ALLKEYS, TR_ALLKEYS, ALLIPS, PORT
-from common import FORCE_TRAINING, preferred_accel_to_accel
+from common import DATA_ALLKEYS, TR_ALLKEYS, ALLIPS, PORT, MON_ORDER
+from common import FORCE_DATA_MODEL_TRAINING, FORCE_EXEC_MODEL_TRAINING, preferred_accel_to_accel
 from cpis_processor import CPIS_Processor
 import numpy as np
 import os
@@ -15,14 +15,8 @@ HOST = '0.0.0.0'
 NUM_CLIENTS = len(ALLIPS)
 CPIS_UPDATE_DLAY = 0.8
 
-client_socket_l = []
-client_name_l = []
-keys = []
-data_buffer = []
 
-
-def print_data_buffer():
-    global spd_diff
+def print_data_buffer(keys, data_buffer):
     for i in range(len(data_buffer)):
         print("%s=%s " % (keys[i], data_buffer[i]), end='')
     print(" ")
@@ -39,6 +33,10 @@ def main():
     Threshold_calibrate_accu = 10
     Starting_delay = 10
 
+    Invar_threshold_alert = 1.0e-5
+    Invar_threshold_alert_accu = 2
+    Invar_accu = 0
+
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -47,23 +45,17 @@ def main():
     server_socket.listen(5)
     print("\n Listning on port: " + str(PORT))
 
-#     Init the model
-#     p0 = np.array([
-# [2.210843984499893821e-06,-5.657178557028958886e-05,-3.752115930753636232e-05],
-# [-5.657178557385380863e-05,5.305463786752321123e-03,8.656815972961321316e-04],
-# [-3.752115931375383487e-05,8.656815972987671765e-04,6.564533706505748870e-04],
-# ])
-#     theta = np.array([
-# [1.393763362373513586e-04],
-# [8.894631089364557486e-02],
-# [-5.111392825591626506e-03],
-# ])
+    # Init the model
     theta = np.loadtxt("theta.csv", delimiter=",").reshape((4, 1))
-    if FORCE_TRAINING:
+    counters_invarts = np.loadtxt("counters_invarts.txt", dtype=float)
+    if FORCE_DATA_MODEL_TRAINING:
         theta = None
     LR_model = CPIS_Processor(P_0=None, theta_0=theta, directory=None)
 
     # Connect to CPIS monitors
+    keys = [None] * NUM_CLIENTS
+    client_socket_l = [None] * NUM_CLIENTS
+    client_name_l = [None] * NUM_CLIENTS
     for i in range(NUM_CLIENTS):
         client_socket, (client_ip, client_port) = server_socket.accept()
         if client_ip not in ALLIPS:
@@ -72,12 +64,17 @@ def main():
         print("Client %d of %d %s(%s) connected successfully" %
             (i+1, NUM_CLIENTS, ALLIPS[client_ip], client_ip))
 
-        client_socket_l.append(client_socket)
-        client_name_l.append(ALLIPS[client_ip])
-        keys.extend(DATA_ALLKEYS[client_name_l[i]])
+        order = MON_ORDER.index(ALLIPS[client_ip])
+        client_socket_l[order] = client_socket
+        client_name_l[order] = ALLIPS[client_ip]
+        keys[order] = DATA_ALLKEYS[client_name_l[i]]
+    keys = [item for sublist in keys for item in sublist]
+    print("Keys: ", keys)
     print("\n")
+    
 
     # Receiving & processing monitors' data
+    data_buffer = []
     exit_now = False
     prev_sped = 0.0
     spd_diff = 0.0
@@ -88,8 +85,15 @@ def main():
     gear_idx = keys.index('Gear')
     thrt_idx = keys.index('Throttle')
     pref_accel_idx = keys.index("Pref_Accel")
+
+    # Processing exec trace counters
+    counters_matrix = []
+    counters_buffer = []
+    counters_matrix_stat = None
+
     while True:
         data_buffer.clear()
+        counters_buffer.clear()
         if Starting_delay > 0:
             Starting_delay -= 1
             
@@ -103,14 +107,14 @@ def main():
                 break
             data, counters, res = pickle.loads(in_payload)
             data_buffer.extend(data)
-
+            counters_buffer.extend(counters)
             # Report from reprocessors
             if (res):
                 print("\n!! Monitor [%s] reports anomaly !!\n" % client_name_l[i])
 
         if exit_now:
             break
-        print_data_buffer()
+        print_data_buffer(keys, data_buffer)
 
         # Extract Data
         cur_sped = float(data_buffer[sped_idx])
@@ -118,6 +122,37 @@ def main():
         cur_gear = float(data_buffer[gear_idx])
         cur_thrt_from_cc = preferred_accel_to_accel(float(data_buffer[pref_accel_idx]))
 
+        """ ======================== Exec Invariants Model =================== """
+        if FORCE_EXEC_MODEL_TRAINING:
+            import random
+            print("\nNew Counters [%s]" % counters_buffer)
+            if counters_matrix_stat is None:
+                counters_matrix_stat = np.array(counters_buffer)
+            else:
+                counters_matrix_stat += np.array(counters_buffer)
+            code_cov = np.count_nonzero(counters_matrix_stat) / len(counters_buffer)
+            print("Code coverage: %.2f" % (code_cov * 100))
+            counters_matrix.append(counters_buffer.copy())
+            matrix = np.array(counters_matrix, dtype=int)
+            # print(matrix)
+            np.savetxt("counters_mtx.txt", matrix)
+            time.sleep(random.uniform(2, 4))
+            continue
+
+        # Check invariants
+        counters_input = np.array(counters_buffer)
+        res = np.dot(counters_invarts, counters_input)
+        error = np.max(np.abs(res))
+        if (error > Invar_threshold_alert):
+            Invar_accu += 1
+        else:
+            Invar_accu = 0
+        if (Invar_accu > Invar_threshold_alert_accu):
+            print("\n!! Exec Invariants Anomaly !!\n")
+
+        print("== Exec Invariants Error %.3f" % error)
+
+        """ ======================== Linear Regression Model =================== """
         # Calc acceleration
         spd_diff = cur_sped - prev_sped
         prev_sped = cur_sped
@@ -144,7 +179,7 @@ def main():
         # print("Xi=%s; yi=%s" % (X_i, y_i))
 
         # Force training
-        if FORCE_TRAINING:
+        if FORCE_DATA_MODEL_TRAINING:
             if (y_i < 10 and y_i > -10):
                 # and cur_thrt != 0.0
                 # and cur_thrt != 1.0):
@@ -167,7 +202,7 @@ def main():
         else:
             error = LR_model.test(X_i, y_i, None)[0][0]
             # should_train = True
-            print("==Error is %s" % error)
+            print("== Data Model Error %.3f" % error)
 
             # Check for anomaly
             if error > Threshold_alert and Starting_delay == 0:
@@ -188,6 +223,7 @@ def main():
                 Accu_calibrate = 0
 
         time.sleep(CPIS_UPDATE_DLAY)
+        print("")
 
     print("Now Exit")
     client_socket.close()

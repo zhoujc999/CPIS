@@ -10,7 +10,8 @@ import threading
 import fcntl
 import re
 
-FORCE_TRAINING = False
+FORCE_DATA_MODEL_TRAINING = False
+FORCE_EXEC_MODEL_TRAINING = False
 
 # Main CPIS node
 HOST = "100.0.0.1"
@@ -21,14 +22,16 @@ DATA_ALLKEYS = {
 }
 
 TR_ALLKEYS = {
-    "engine_ctrl": [30, 45, 47, 49, 56, 58, 62, 63],
-    "cc_ctrl": [46, 48, 53, 68],
+    "engine_ctrl": [31, 46, 48, 50, 55, 57, 69, 71, 73],
+    "cc_ctrl": [46, 53, 58, 73],
 }
 
 ALLIPS = {
     "100.0.0.3": "cc_ctrl",
     "100.0.0.2": "engine_ctrl",
 }
+
+MON_ORDER = ["engine_ctrl", "cc_ctrl"]
 
 UPDATE_FREQ = 5.0
 TRACE_COUNTER_SZ = 1000
@@ -205,6 +208,7 @@ def assertion_counter(input, threshold=3):
     return 0
 
 THROTTLE_SCALE = 2
+BRAKE_THRESHOLD = -0.5
 
 def preferred_accel_to_accel(input):
     if input > THROTTLE_SCALE:
@@ -213,3 +217,10 @@ def preferred_accel_to_accel(input):
         return 0.0
     else:
         return (input / THROTTLE_SCALE)
+
+def preferred_accel_to_brake(input):
+    # Todo
+    if input < BRAKE_THRESHOLD:
+        return 1
+    else:
+        return 0

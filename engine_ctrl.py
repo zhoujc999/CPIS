@@ -26,6 +26,7 @@ eprint("\n Client" + client_ip + "connected successfully\n")
 throttle = 0.0
 gear = 1
 rpm = 0
+brake = False
 while True:
     in_payload = client_socket.recv(104) # revist
     if not in_payload:
@@ -49,6 +50,12 @@ while True:
         throttle = preferred_accel_to_accel(prefered_accel) # prefered_accel
     tprint("Throttle %.2f" % (throttle))
 
+    # Brake control
+    if preferred_accel_to_brake(prefered_accel):
+        brake = True
+    else:
+        brake = False
+
     mapping = [1100, 3000] # Shift down & shift up RPM
     if (throttle > 0.9):
         mapping = [4500, 7500]
@@ -58,7 +65,10 @@ while True:
         gear = max(1, gear-1)
     tprint("Gear %d" % (gear))
 
-    eprint("Gear %d, Throttle %.2f" % (gear, throttle))
+    if brake:
+        eprint("Gear %d, Throttle %.2f, Braking" % (gear, throttle))
+    else:
+        eprint("Gear %d, Throttle %.2f" % (gear, throttle))
     write_file('gear.txt', gear)
     write_file('throttle.txt', float(throttle))
 

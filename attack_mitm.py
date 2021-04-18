@@ -16,7 +16,7 @@ import multiprocessing
 
 def read_prefered_accel():
     if not os.path.exists("override_prefered_accel.txt"):
-        return "+0.10"
+        return "+1.50"
     opened_file = open("override_prefered_accel.txt", 'r')
     line = opened_file.read()
     opened_file.close()

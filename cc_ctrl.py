@@ -36,11 +36,11 @@ while(1):
 eprint("Connected.")
 
 
-
 cur_speed = 0.0
 set_speed = 0
 cur_pref_accel = 0.1
 cur_pref_accel_diff = 0.1
+
 while True:
     # Get cur_speed from vehicle simulator (in kmh)
     cur_speed = read_file('cur_speed.txt', float)
@@ -52,8 +52,13 @@ while True:
     diff = set_speed - cur_speed
     prefered_accel = pid.Update(diff, dt=UPDATE_FREQ, ci_limit_L=-10, ci_limit_H=200) / 20
     
+    # Braking logic (incomplete)
+    brake = False
+    if preferred_accel_to_brake(prefered_accel):
+        brake = True
+
     # Training Mode
-    if (FORCE_TRAINING):
+    if (FORCE_DATA_MODEL_TRAINING):
         cur_pref_accel += cur_pref_accel_diff
         if cur_pref_accel > 2.1:
             cur_pref_accel_diff = -cur_pref_accel_diff

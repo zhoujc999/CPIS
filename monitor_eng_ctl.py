@@ -11,7 +11,7 @@ def eng_ctl_pre_processor(data, counters):
         return 1
     # serial
     if assertion_counter(
-        (counters[0] == counters[-1] == counters[-2]),
+        (counters[0] == counters[-1]),
         threshold=5):
         eprint("Serial exec not equal")
         return 1
