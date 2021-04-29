@@ -11,10 +11,17 @@ from cpis_processor import CPIS_Processor
 import numpy as np
 import os
 
+import matplotlib.pyplot as plt
+
 HOST = '0.0.0.0'
 NUM_CLIENTS = len(ALLIPS)
 CPIS_UPDATE_DLAY = 0.8
 
+PLOT = True
+colors = ["red","red", "green","blue","orange","pink"]
+throt_rang = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+buffery = [0.0] * len(throt_rang)
+buffery = np.array(buffery)
 
 def print_data_buffer(keys, data_buffer):
     for i in range(len(data_buffer)):
@@ -26,7 +33,8 @@ def main():
     should_train = True
 
     Threshold_alert = 20.0
-    Threshold_calibrate = 1.0
+    Threshold_alert_sqrt = np.sqrt(Threshold_alert)
+    Threshold_calibrate = 1000 #2.0
     Accu_alert = 0
     Accu_calibrate = 0
     Threshold_alert_accu = 3
@@ -69,7 +77,7 @@ def main():
         order = MON_ORDER.index(ALLIPS[client_ip])
         client_socket_l[order] = client_socket
         client_name_l[order] = ALLIPS[client_ip]
-        keys[order] = DATA_ALLKEYS[client_name_l[i]]
+        keys[order] = DATA_ALLKEYS[client_name_l[order]]
     keys = [item for sublist in keys for item in sublist]
     print("Keys: ", keys)
     print("\n")
@@ -92,6 +100,9 @@ def main():
     counters_matrix = []
     counters_buffer = []
     counters_matrix_stat = None
+
+    # Plot
+    plt.axis([0, 1, -1, 10])
 
     while True:
         data_buffer.clear()
@@ -123,7 +134,7 @@ def main():
         cur_thrt = float(data_buffer[thrt_idx])
         cur_gear = float(data_buffer[gear_idx])
         cur_thrt_from_cc = preferred_accel_to_accel(float(data_buffer[pref_accel_idx]))
-
+        
         """ ======================== Exec Invariants Model =================== """
         if FORCE_EXEC_MODEL_TRAINING:
             import random
@@ -241,6 +252,23 @@ def main():
             else:
                 Accu_alert = 0
                 Accu_calibrate = 0
+
+        # Plot
+        if PLOT:
+            plt.clf()
+            for plot_gear in [1,2,3,4,5]:
+            # plot_gear = int(cur_gear)
+                for i in range(0, len(throt_rang)):
+                    plot_xi = np.array([cur_sped ** 2, (throt_rang[i] / plot_gear), cur_sped])
+                    expected = LR_model.calc(plot_xi)
+                    buffery[i] = expected
+                plt.plot(throt_rang, buffery, c=colors[plot_gear])
+                if (plot_gear == int(cur_gear)):
+                    plt.fill_between(throt_rang, buffery - Threshold_alert_sqrt / 2,
+                                     buffery + Threshold_alert_sqrt / 2, color=colors[plot_gear],alpha=0.1)
+            # plt.plot(throt_rang, buffery, c=colors[plot_gear], linewidth=100, alpha=0.1)
+            plt.scatter(cur_thrt, y_i, c=colors[int(cur_gear)], s=80, edgecolors='none')
+            plt.pause(0.05)
 
         time.sleep(CPIS_UPDATE_DLAY)
         print("")

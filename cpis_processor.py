@@ -32,6 +32,7 @@ class CPIS_Processor:
 
         np.savetxt(self.directory + "P.csv", self.P, delimiter=",")
         np.savetxt(self.directory + "theta.csv", self.theta, delimiter=",")
+        self.theta_cache = self.theta
 
     def train(self, X_i, y_i, l=1):
         """
@@ -84,6 +85,7 @@ class CPIS_Processor:
         """
         X_i = np.insert(X_i, 0, 1).reshape((4, 1))
         theta = np.loadtxt(self.directory + "theta.csv", delimiter=",").reshape((4, 1))
+        self.theta_cache = theta
         return self.linear_regression_test(X_i, y_i, theta)
 
     def linear_regression_test(self, X_i, y_i, theta):
@@ -99,6 +101,10 @@ class CPIS_Processor:
         squared_error = (y_i - np.dot(X_i.T, theta)) ** 2
         # return True if squared_error <= se_threshold else False
         return squared_error
+
+    def calc(self, X_i):
+        X_i = np.insert(X_i, 0, 1).reshape((4, 1))
+        return np.dot(X_i.T, self.theta_cache)[0][0]
 
 """
 def main():

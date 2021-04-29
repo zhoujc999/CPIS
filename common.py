@@ -66,7 +66,7 @@ def connect_to_server_socket(host, port):
 """ Monitor guts """
 
 def monitor_data_extract(line):
-    res = re.match("_DATATRACE_ (.*) (\d+(?:\.\d+)?)", line)
+    res = re.match("_DATATRACE_ (.*) ([+-]?([0-9]*[.])?[0-9]+)", line)
     if not res:
         return None, None
     key = res.groups()[0]
