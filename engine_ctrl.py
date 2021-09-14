@@ -24,9 +24,10 @@ client_socket, (client_ip, client_port) = server_socket.accept()
 eprint("\n Client" + client_ip + "connected successfully\n")
 
 throttle = 0.0
-gear = 1
+new_gear = gear = 1
 rpm = 0
 brake = False
+delay_count = 10
 while True:
     in_payload = client_socket.recv(104) # revist
     if not in_payload:
@@ -56,13 +57,30 @@ while True:
     else:
         brake = False
 
-    mapping = [1100, 3000] # Shift down & shift up RPM
-    if (throttle > 0.9):
-        mapping = [4500, 7500]
+    # Shift down & shift up RPM
+    if FORCE_DATA_MODEL_TRAINING:
+        mapping = [1000, 3500]
+    elif (throttle > 0.9):
+        mapping = [4500, 7000]
+    else:
+        mapping = [1100, 3000]
     if rpm > mapping[1]:
-        gear = min(5, gear+1)
+        new_gear = min(5, gear+1)
     elif rpm < mapping[0]:
-        gear = max(1, gear-1)
+        new_gear = max(1, gear-1)
+    
+    # Gear change delay
+    if (new_gear != gear):
+        if (delay_count <= 0):
+            gear = new_gear
+            delay_count = 10
+        else:
+            delay_count -= 1
+
+    # Overriding
+    ovwr_gear = read_file('override_gear.txt', int)
+    if (5 >= ovwr_gear > 0):
+        gear = ovwr_gear
     tprint("Gear %d" % (gear))
 
     if brake:

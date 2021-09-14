@@ -5,7 +5,7 @@ import sys
 import select
 import time
 import pickle
-from common import DATA_ALLKEYS, TR_ALLKEYS, ALLIPS, PORT, MON_ORDER
+from common import DATA_ALLKEYS, TR_ALLKEYS, ALLIPS, PORT, MON_ORDER, write_file
 from common import FORCE_DATA_MODEL_TRAINING, FORCE_EXEC_MODEL_TRAINING, preferred_accel_to_accel
 from cpis_processor import CPIS_Processor
 import numpy as np
@@ -18,10 +18,13 @@ NUM_CLIENTS = len(ALLIPS)
 CPIS_UPDATE_DLAY = 0.8
 
 PLOT = True
-colors = ["red","red", "green","blue","orange","pink"]
+colors = ["red","red", "orange", "green","blue", "purple"]
 throt_rang = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 buffery = [0.0] * len(throt_rang)
 buffery = np.array(buffery)
+buffer_thrt = []
+buffer_yi = []
+buffer_color = []
 
 def print_data_buffer(keys, data_buffer):
     for i in range(len(data_buffer)):
@@ -32,7 +35,7 @@ def main():
     file1 = open("new_data.txt", "a")
     should_train = True
 
-    Threshold_alert = 20.0
+    Threshold_alert = 5.0
     Threshold_alert_sqrt = np.sqrt(Threshold_alert)
     Threshold_calibrate = 1000 #2.0
     Accu_alert = 0
@@ -180,6 +183,7 @@ def main():
             Invar_accu = 0
         if (Invar_accu > Invar_threshold_alert_accu):
             print("\n!! Exec Invariants Anomaly !!\n")
+            write_file("alert_flag_exec.txt", 1)
 
         print("== Exec Invariants Error %.3f" % error)
 
@@ -211,11 +215,30 @@ def main():
 
         # Force training
         if FORCE_DATA_MODEL_TRAINING:
-            if (y_i < 10 and y_i > -10):
+            if (y_i < 20 and y_i > -20):
                 # and cur_thrt != 0.0
                 # and cur_thrt != 1.0):
                 theta, P = LR_model.train(X_i, y_i, l=1)
                 print("==Force Training." % theta)
+
+                if PLOT:
+                    """
+                    plt.clf()
+                    for plot_gear in [1,2,3,4,5]:
+                        # plot_gear = int(cur_gear)
+                        for i in range(0, len(throt_rang)):
+                            plot_xi = np.array([cur_sped ** 2, (throt_rang[i] / plot_gear), cur_sped])
+                            expected = LR_model.calc(plot_xi)
+                            buffery[i] = expected
+                        plt.plot(throt_rang, buffery, c=colors[plot_gear])
+                    # plt.scatter(cur_thrt, y_i, c=colors[int(cur_gear)], s=80, edgecolors='none')
+                    buffer_thrt.append(cur_thrt)
+                    buffer_yi.append(y_i)
+                    buffer_color.append(colors[int(cur_gear)])
+                    plt.scatter(buffer_thrt, buffer_yi, c=buffer_color, s=80, edgecolors='none')
+                    """
+                    plt.scatter(cur_thrt, y_i, c=colors[int(cur_gear)], s=80, edgecolors='none')
+                    plt.pause(0.05)
 
             time.sleep(CPIS_UPDATE_DLAY)
             continue
@@ -241,6 +264,7 @@ def main():
                 if (Accu_alert > Threshold_alert_accu or
                     error > 1000):
                     print("\n!! Accel Model Anomaly !!\n")
+                    write_file("alert_flag_data.txt", 1)
                     Accu_alert = 0
             # Check for calibration
             elif error > Threshold_calibrate:
@@ -268,6 +292,10 @@ def main():
                                      buffery + Threshold_alert_sqrt / 2, color=colors[plot_gear],alpha=0.1)
             # plt.plot(throt_rang, buffery, c=colors[plot_gear], linewidth=100, alpha=0.1)
             plt.scatter(cur_thrt, y_i, c=colors[int(cur_gear)], s=80, edgecolors='none')
+            plt.xlabel("Throttle Input")
+            plt.ylabel("Acceleration (km/(h*s))")
+            plt.xlim([-0.1, 1.1])
+            plt.ylim([-3, 20])
             plt.pause(0.05)
 
         time.sleep(CPIS_UPDATE_DLAY)

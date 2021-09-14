@@ -39,7 +39,7 @@ eprint("Connected.")
 cur_speed = 0.0
 set_speed = 0
 cur_pref_accel = 0.1
-cur_pref_accel_diff = 0.1
+cur_pref_accel_diff = 0.05
 
 while True:
     # Get cur_speed from vehicle simulator (in kmh)
@@ -60,9 +60,9 @@ while True:
     # Training Mode
     if (FORCE_DATA_MODEL_TRAINING):
         cur_pref_accel += cur_pref_accel_diff
-        if cur_pref_accel > 2.1:
+        if cur_pref_accel > 1.9:
             cur_pref_accel_diff = -cur_pref_accel_diff
-        elif cur_pref_accel < -0.1:
+        elif cur_pref_accel < -0.5:
             cur_pref_accel_diff = -cur_pref_accel_diff
         prefered_accel = cur_pref_accel
         eprint("(Force Training Mode)")

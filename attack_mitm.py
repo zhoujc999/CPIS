@@ -16,7 +16,7 @@ import multiprocessing
 
 def read_prefered_accel():
     if not os.path.exists("override_prefered_accel.txt"):
-        return "+1.50"
+        return None
     opened_file = open("override_prefered_accel.txt", 'r')
     line = opened_file.read()
     opened_file.close()
@@ -73,6 +73,10 @@ def callback(i, payload):
         print("Modify a pkt from source ip : " + str(pkt.src))
         # Read prefered-accel from file
         accel = read_prefered_accel()
+        if accel is None:
+            # Pass-through
+            payload.set_verdict(nfqueue.NF_ACCEPT)
+            return
         pkt[TCP].remove_payload()
         pkt[TCP].add_payload(Raw(str.encode(accel)))
         payload.set_verdict_modified(nfqueue.NF_ACCEPT, str(pkt), len(pkt))

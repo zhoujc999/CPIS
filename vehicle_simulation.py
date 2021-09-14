@@ -3,6 +3,7 @@
 import socket
 import sys
 import select
+import os
 import time
 from math import pi
 from time import sleep
@@ -11,6 +12,10 @@ from os import path
 import numpy as np
 import fcntl
 from common import read_file, write_file, UPDATE_FREQ
+from multiprocessing import Process
+import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider
+
 
 SIM_FREQ = UPDATE_FREQ * 2
 
@@ -97,6 +102,37 @@ def vehicle_update(t, x, u, params={}):
     return dv, omega
 
 
+
+def plot_vehicle_status():
+    fig, axs = plt.subplots(3, figsize=(8, 4))
+    # fig.set_size_inches(18.5, 10.5)
+    plt.subplots_adjust(hspace=0.5, top=0.95, bottom=0.05)
+    ax = axs[1]
+    ax2 = axs[0]
+    # ax = fig.gca()
+    # ax2 = ax.twiny()
+    ax.set_yticks([])
+    ax2.set_yticks([])
+    ax.set_xlim([0, 140])
+    ax2.set_xlim([0, 7500])
+    ax.set_xlabel("Speed (KM/H)")
+    ax2.set_xlabel("RPM")
+    # plt.show()
+    cur_spd_rect = ax.barh(0.05, 1, color = 'cyan', height = 0.25, edgecolor='none')
+    # set_spd_rect = ax.barh(0.25, 1, color = 'b', height = 0.05, edgecolor='none')
+    rpm_rect = ax2.barh(0.6, 1, color = 'tomato', height = 0.25, edgecolor='none')
+
+    axamp = axs[2]
+    samp = Slider(axamp, 'Set Spd', 0.0, 140.0, valinit=0)
+    gear_label = plt.text(70, 3.3, "  " ,ha='center', va='center', size='x-large', weight='bold')
+    while(1):
+        set_spd = int(samp.val)
+        write_file("set_speed.txt", set_spd)
+        cur_spd_rect.patches[0].set_width(read_file('cur_speed.txt', float))
+        rpm_rect.patches[0].set_width(read_file('rpm.txt', float))
+        gear_label.set_text("Gear %d" % read_file('gear.txt', int))
+        plt.pause(0.2)
+
 cur_speed_ms = 0.0
 throttle = 0.0
 gear = 1
@@ -114,12 +150,18 @@ with open('rpm.txt', 'w') as f:
 with open('slope.txt', 'w') as f:
     f.write("0")
 
+p = Process(target=plot_vehicle_status)
+p.start()
+
 while True:
     # Read from engine controller
     throttle = read_file('throttle.txt', float)
     gear = read_file('gear.txt', int)
     slope_deg = read_file('slope.txt', float)
     slope = slope_deg * pi / 180.0
+
+    if os.path.exists("override_speed.txt"):
+        cur_speed_ms = read_file("override_speed.txt", float)
 
     # Vehicle simulation
     if not (cur_speed_ms == 0 and throttle == 0):
@@ -134,3 +176,4 @@ while True:
     time.sleep(1.0 / SIM_FREQ)
 
 print("Now Exit")
+p.join()

@@ -49,6 +49,7 @@ class CPIS_Processor:
         self.theta, self.P = self.linear_regression_train(X_i, y_i, self.theta, self.P, l)
         np.savetxt(self.directory + "P.csv", self.P, delimiter=",")
         np.savetxt(self.directory + "theta.csv", self.theta, delimiter=",")
+        self.theta_cache = self.theta
         return self.theta, self.P
 
     def linear_regression_train(self, X_i, y_i, theta, P, l):

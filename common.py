@@ -22,7 +22,7 @@ DATA_ALLKEYS = {
 }
 
 TR_ALLKEYS = {
-    "engine_ctrl": [31, 46, 48, 50, 55, 57, 69, 71, 73],
+    "engine_ctrl": [32, 47, 49, 51, 56, 58, 87, 89, 91],
     "cc_ctrl": [46, 53, 58, 73],
 }
 
@@ -208,7 +208,7 @@ def assertion_counter(input, threshold=3):
     return 0
 
 THROTTLE_SCALE = 2
-BRAKE_THRESHOLD = -0.5
+BRAKE_THRESHOLD = -0.1
 
 def preferred_accel_to_accel(input):
     if input > THROTTLE_SCALE:
